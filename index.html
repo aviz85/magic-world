@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Magic World ✨</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app"></div>
+  <div id="ui"></div>
+  <script>
+    // Runtime error collector for automated QA
+    window.__gameErrors = [];
+    window.addEventListener('error', (e) => window.__gameErrors.push(String(e.message || e)));
+    window.addEventListener('unhandledrejection', (e) => window.__gameErrors.push('rejection: ' + String(e.reason)));
+  </script>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# OpenWolf — session/runtime data
+.wolf/hooks/
+.wolf/token-ledger.json
+.wolf/cron-state.json
+.wolf/designqc-captures/
+.wolf/suggestions.json
