@@ -9,3 +9,4 @@ dist/
 .wolf/cron-state.json
 .wolf/designqc-captures/
 .wolf/suggestions.json
+.vercel
