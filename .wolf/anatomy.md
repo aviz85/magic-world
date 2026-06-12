@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-11T20:19:23.487Z
-> Files: 47 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T11:45:53.108Z
+> Files: 48 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -39,7 +39,7 @@
 
 ## src/
 
-- `main.js` — Declares renderer (~998 tok)
+- `main.js` — renderer: applyPixelRatio (~1507 tok)
 - `style.css` — Styles: 2 rules (~98 tok)
 
 ## src/audio/
@@ -55,6 +55,8 @@
 ## src/creatures/
 
 - `Golem.js` — Golems — stone golem manager for Magic World. (~4931 tok)
+- `Unicorns.js` — Unicorns 🦄 — a small herd of 3 low-poly unicorns that roam the island. (~3261 tok)
+- `Unicorns.js` — Unicorns 🦄 — herd of 3 low-poly unicorns: wander/graze/startle state machine, glowing horn, sparkle trail. (~3200 tok)
 - `Wisps.js` — Wisps — 12 curious glowing lanterns that wander the island. (~3813 tok)
 
 ## src/fx/
@@ -99,4 +101,4 @@
 - `Sky.js` — Sky — full day/night cycle for Magic World. (~7606 tok)
 - `Terrain.js` — Terrain — fbm island heightfield (160x160 verts over 240x240 world units). (~6069 tok)
 - `Vegetation.js` — Vegetation — seeded scatter of trees, glowing mushrooms, crystal clusters and (~6617 tok)
-- `Water.js` — Water — translucent animated magical water plane. (~3484 tok)
+- `Water.js` — --------------------------------------------------------------------------- (~5081 tok)
