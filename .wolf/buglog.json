@@ -264,6 +264,106 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-06-12T12:27:06.571Z"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-06-12T12:51:03.937Z",
+      "error_message": "Missing guard clause",
+      "file": "src/creatures/Unicorns.js",
+      "root_cause": "No early return/throw for edge case: d > reach",
+      "fix": "Added guard clause: if (d > reach)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-12T12:51:59.492Z"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-06-12T12:53:37.391Z",
+      "error_message": "Missing guard clause",
+      "file": "src/creatures/Wisps.js",
+      "root_cause": "No early return/throw for edge case: d > reach || d < 0.001",
+      "fix": "Added guard clause: if (d > reach || d < 0.001)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T12:53:37.391Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-06-12T13:00:21.692Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/creatures/Unicorns.js",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 5→6 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T13:00:21.692Z"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-06-12T13:00:24.507Z",
+      "error_message": "Wrong condition in logic",
+      "file": "src/creatures/Unicorns.js",
+      "root_cause": "Condition was: if (u.vel.y < 0 && pos.y <= ground)",
+      "fix": "Changed to: if (pos.y <= ground)",
+      "tags": [
+        "auto-detected",
+        "logic-fix",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T13:00:24.507Z"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-06-12T00:00:00.000Z",
+      "error_message": "Launched unicorns tunneled through rising terrain (height-above-ground sampled at -6.58m)",
+      "file": "src/creatures/Unicorns.js",
+      "root_cause": "Ballistic LAUNCHED integration only checked pos.y <= ground for landing on descent; flying sideways into a slope (terrain higher than flight path) had no collision response, so the body passed inside the hill",
+      "fix": "pos.y <= ground now always clamps; while still ascending (vel.y > 0.5) it's treated as a slope smack — horizontal velocity *= 0.2, dust puff, return (landing handled on descent)",
+      "tags": [
+        "physics",
+        "terrain-collision",
+        "unicorns",
+        "knockback",
+        "tunneling"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T00:00:00.000Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-06-12T00:00:00.000Z",
+      "error_message": "Slope-smack branch fell through into the touchdown code (missing return) — would have ended the launch mid-ascent",
+      "file": "src/creatures/Unicorns.js",
+      "root_cause": "Original landing block relied on a return inside the bounce branch; the newly inserted smack branch had no return so execution continued into the unconditional touchdown lines",
+      "fix": "Added return after the smack branch",
+      "tags": [
+        "control-flow",
+        "fallthrough",
+        "unicorns"
+      ],
+      "related_bugs": [
+        "bug-005"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T00:00:00.000Z"
     }
   ]
 }

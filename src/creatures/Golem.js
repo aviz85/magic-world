@@ -70,6 +70,21 @@ export default class Golems {
   }
 
   /**
+   * Projectile collision contract (see Fireball._gatherTargets):
+   * array of { position, r, yOff } live refs. Golems are broad stone bodies —
+   * a fireball detonates against them; the blast doesn't move them (stone).
+   */
+  getHitTargets() {
+    const arr = this._hitArr || (this._hitArr = []);
+    arr.length = 0;
+    for (let i = 0; i < this.golems.length; i++) {
+      const t = this.golems[i].hitTarget;
+      if (t) arr.push(t);
+    }
+    return arr;
+  }
+
+  /**
    * Summon a golem at `position` (Vector3 or {x,y,z}-like). It claws its way
    * up out of the earth over ~1.2 s in a plume of dust.
    * Returns false when the herd is full (max 5), true on success.
@@ -90,6 +105,7 @@ export default class Golems {
     golem.group.position.set(x, groundY - RISE_DEPTH, z);
     golem.group.rotation.y = Math.random() * Math.PI * 2;
     golem.position = golem.group.position; // convenient public handle
+    golem.hitTarget = { position: golem.group.position, r: 1.35, yOff: 1.3 };
     this.root.add(golem.group);
     this.golems.push(golem);
 

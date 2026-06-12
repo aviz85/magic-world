@@ -18,6 +18,7 @@
 - Headless QA vs the running Vite dev server: `networkidle0` never settles under HMR churn; use `waitUntil: 'load'` + a fixed delay instead.
 
 ## Do-Not-Repeat
+- (2026-06-12) Headless QA under swiftshader runs at ~5fps while dt clamps to 0.05s, so the sim runs at ~quarter real-time — physics that 'looks stuck' after 8s may just need 20-30s of wall-clock. Budget waits accordingly before declaring a bug.
 - (2026-06-12) Headless QA: the puppeteer user-data-dir persists localStorage, so SaveSystem auto-loads the previous run's world — call build.clearAll() (or clear localStorage) before any block-placement test, or casts silently no-op on occupied cells.
 
 <!-- Mistakes made and corrected. Each entry prevents the same mistake recurring. -->

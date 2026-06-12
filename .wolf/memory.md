@@ -92,3 +92,16 @@
 | 15:48 | Headless QA of graphics upgrade: day/night/elevated screenshots, per-frame stats (155 calls / 126k tris / 18 passes vs baseline 78/80k) — bloom, terrain bands, grass all confirmed, zero errors | scripts/qa-tmp-wf.mjs (deleted) | ok | ~9k |
 | 15:49 | Edited src/creatures/Unicorns.js | modified Contract() | ~164 |
 | 15:49 | Edited src/creatures/Unicorns.js | 2→7 lines | ~119 |
+| 15:50 | Edited src/creatures/Unicorns.js | modified for() | ~210 |
+| 15:51 | Edited src/creatures/Unicorns.js | added 3 condition(s) | ~617 |
+| 15:51 | Edited src/creatures/Unicorns.js | added 1 condition(s) | ~106 |
+| 15:51 | Edited src/creatures/Unicorns.js | added 5 condition(s) | ~980 |
+| 15:52 | Edited src/magic/spells/Fireball.js | added 2 condition(s) | ~290 |
+| 15:52 | Edited src/magic/spells/Fireball.js | added 1 condition(s) | ~460 |
+| 15:53 | Edited src/creatures/Golem.js | added 1 condition(s) | ~166 |
+| 15:53 | Edited src/creatures/Golem.js | 3→4 lines | ~60 |
+| 15:53 | Edited src/creatures/Wisps.js | added 1 condition(s) | ~265 |
+| 16:00 | Edited src/creatures/Unicorns.js | 5→6 lines | ~91 |
+| 16:00 | Edited src/creatures/Unicorns.js | added 1 condition(s) | ~106 |
+| 16:03 | Edited src/creatures/Unicorns.js | modified if() | ~58 |
+| 16:05 | Fireball creature collision (getHitTargets contract) + blast knockback: unicorns launched/tumble/bounce/land, wisps scatter, golems detonate-on-contact | Fireball.js, Unicorns.js, Wisps.js, Golem.js | verified headless: peak 3.4m, tumble, clean landing, golem alive, 0 errors | ~35k |

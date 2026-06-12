@@ -84,6 +84,31 @@ export default class Fireball {
 
     // scratch for distance-scaled camera shake (no per-impact allocations)
     this._shakeVec = new THREE.Vector3();
+
+    // reused creature-target list (refilled once per flight frame)
+    this._targets = [];
+  }
+
+  /**
+   * Live creature bodies the ball can slam into mid-flight. Creature systems
+   * opt in by exposing getHitTargets() → [{ position, r, yOff }] (live refs);
+   * the blast that follows (fx:explosion) does the pushing — never any harm.
+   */
+  _gatherTargets() {
+    const arr = this._targets;
+    arr.length = 0;
+    const sys = this.ctx.systems;
+    const unicorns = sys.unicorns;
+    if (unicorns && typeof unicorns.getHitTargets === 'function') {
+      const list = unicorns.getHitTargets();
+      for (let i = 0; i < list.length; i++) arr.push(list[i]);
+    }
+    const golems = sys.golems;
+    if (golems && typeof golems.getHitTargets === 'function') {
+      const list = golems.getHitTargets();
+      for (let i = 0; i < list.length; i++) arr.push(list[i]);
+    }
+    return arr;
   }
 
   /** Impact punch: camera shake scaled by proximity to the blast. */
@@ -237,6 +262,7 @@ export default class Fireball {
 
         // integrate with substeps so 38 m/s can't tunnel through a ridge
         const sub = dt / SUBSTEPS;
+        const targets = spell._gatherTargets(); // live creature bodies
         for (let i = 0; i < SUBSTEPS; i++) {
           this.velocity.y -= GRAVITY * sub;
           this.mesh.position.addScaledVector(this.velocity, sub);
@@ -255,6 +281,19 @@ export default class Fireball {
             const groundH = terrain.getHeight(this.hitPoint.x, this.hitPoint.z);
             this._beginImpact(this.hitPoint, this.hitPoint.y - groundH < 1.0);
             return true;
+          }
+          // creature strike — detonate on the body (unicorns, golems, …);
+          // the blast tosses them via fx:explosion, it never harms them
+          for (let k = 0; k < targets.length; k++) {
+            const tg = targets[k];
+            const dx = p.x - tg.position.x;
+            const dy = p.y - (tg.position.y + tg.yOff);
+            const dz = p.z - tg.position.z;
+            const rr = tg.r + 0.28; // body radius + ball radius
+            if (dx * dx + dy * dy + dz * dz <= rr * rr) {
+              this._beginImpact(p, h > -99 && p.y - h < 1.2);
+              return true;
+            }
           }
         }
 

@@ -143,6 +143,25 @@ export default class Wisps {
     this._vPush = new THREE.Vector3();
     this._vTrailDir = new THREE.Vector3(0, -0.3, 0);
     this._halfWorld = ctx.config.worldSize / 2 - 4;
+
+    // Explosions spook the flock: wisps near a blast re-goal directly away
+    // from it and shimmer with nerves (excite). Ethereal — no physics, the
+    // regular anchor drift carries the ghostly retreat.
+    ctx.events.on('fx:explosion', ({ position, radius }) => {
+      const reach = (radius || 3.5) * 4; // skittish — react well beyond the fire
+      for (let i = 0; i < this.wisps.length; i++) {
+        const w = this.wisps[i];
+        const hp = w.holder.position;
+        const dx = hp.x - position.x;
+        const dz = hp.z - position.z;
+        const d = Math.hypot(dx, dz);
+        if (d > reach || d < 0.001) continue;
+        w.goal.set(hp.x + (dx / d) * 14, hp.y + 2 + (i % 3), hp.z + (dz / d) * 14);
+        this._clampGoal(w.goal);
+        w.goalTimer = 7;
+        w.excite = 1;
+      }
+    });
   }
 
   // -------------------------------------------------------------------------

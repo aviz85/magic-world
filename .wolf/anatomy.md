@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T12:49:39.882Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T13:03:37.346Z
 > Files: 55 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -61,10 +61,10 @@
 ## src/creatures/
 
 - `Butterflies.js` — Butterflies — 8 pastel butterflies that flutter over the meadows by day. (~3603 tok)
-- `Golem.js` — Golems — stone golem manager for Magic World. (~4931 tok)
-- `Unicorns.js` — Unicorns 🦄 — a small herd of 3 low-poly unicorns that roam the island. (~3434 tok)
+- `Golem.js` — Golems — stone golem manager for Magic World. (~5089 tok)
+- `Unicorns.js` — Unicorns 🦄 — a small herd of 3 low-poly unicorns that roam the island. (~5038 tok)
 - `Unicorns.js` — Unicorns 🦄 — herd of 3 low-poly unicorns: wander/graze/startle state machine, glowing horn, sparkle trail. (~3200 tok)
-- `Wisps.js` — Wisps — 12 curious glowing lanterns that wander the island. (~3813 tok)
+- `Wisps.js` — Wisps — 12 curious glowing lanterns that wander the island. (~4046 tok)
 
 ## src/fx/
 
@@ -78,7 +78,7 @@
 
 - `Blink.js` — Blink ⚡ — short-range arcane teleport. (~1706 tok)
 - `Conjure.js` — Conjure 🏰 — divine architecture. (~3195 tok)
-- `Fireball.js` — Impact punch: camera shake scaled by proximity to the blast. (~4028 tok)
+- `Fireball.js` — Live creature bodies the ball can slam into mid-flight. Creature systems (~4479 tok)
 - `GrowTree.js` — GrowTree 🌳 — nature magic. (~2563 tok)
 - `LightOrb.js` — LightOrb 💡 — a floating mote of warm light. (~2786 tok)
 - `Portal.js` — Portal 🌀 — two linked glowing torus gates with swirling rim particles. (~4416 tok)
