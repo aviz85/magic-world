@@ -88,6 +88,182 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-06-12T00:00:00.000Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-06-12T12:12:06.534Z",
+      "error_message": "Missing guard clause",
+      "file": "src/core/AssetFactory.js",
+      "root_cause": "No early return/throw for edge case: tex",
+      "fix": "Added guard clause: if (tex)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T12:12:06.534Z"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-06-12T12:12:14.944Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/world/Terrain.js",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T12:12:14.944Z"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-06-12T12:12:27.186Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/core/AssetFactory.js",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 15→86 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T12:12:27.186Z"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-06-12T12:12:38.181Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/world/Terrain.js",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 14→31 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T12:12:38.181Z"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-06-12T12:12:52.972Z",
+      "error_message": "Missing error handling in unknown",
+      "file": "src/world/Sky.js",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block | Also: _buildEnvMap() {; try {",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-12T12:13:15.576Z"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-06-12T12:22:56.533Z",
+      "error_message": "Incorrect value in code",
+      "file": "src/main.js",
+      "root_cause": "Had './world/Fireflies.js'",
+      "fix": "Changed to './world/Grass.js'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 4,
+      "last_seen": "2026-06-12T12:23:06.212Z"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-06-12T12:23:10.840Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/build/BuildSystem.js",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 14→21 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T12:23:10.840Z"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-06-12T12:23:40.583Z",
+      "error_message": "Missing guard clause",
+      "file": "src/build/BuildSystem.js",
+      "root_cause": "No early return/throw for edge case: placed > 0",
+      "fix": "Added guard clause: if (placed > 0)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-12T12:24:21.092Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-06-12T12:26:06.048Z",
+      "error_message": "Missing guard clause",
+      "file": "src/magic/spells/Conjure.js",
+      "root_cause": "No early return/throw for edge case: target",
+      "fix": "Added guard clause: if (target)",
+      "tags": [
+        "auto-detected",
+        "guard-clause",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T12:26:06.048Z"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-06-12T12:26:42.302Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/magic/spells/Conjure.js",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 13→35 lines (3 removed) | Also: /** Find the conjured structure (if any) whose foo; const dx = p.x - s.centerX;",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-06-12T12:29:44.247Z"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-06-12T12:27:06.571Z",
+      "error_message": "Incorrect value in code",
+      "file": "scripts/qa-tmp-wf.mjs",
+      "root_cause": "Had 'networkidle0'",
+      "fix": "Changed to 'domcontentloaded'",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "mjs"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T12:27:06.571Z"
     }
   ]
 }

@@ -1,4 +1,12 @@
 import * as THREE from 'three';
+import {
+  EffectComposer,
+  RenderPass,
+  EffectPass,
+  BloomEffect,
+  VignetteEffect,
+  ChromaticAberrationEffect,
+} from 'postprocessing';
 import EventBus from './core/EventBus.js';
 import Input from './core/Input.js';
 import Sky from './world/Sky.js';
@@ -6,12 +14,14 @@ import Terrain from './world/Terrain.js';
 import Water from './world/Water.js';
 import FloatingIslands from './world/FloatingIslands.js';
 import Vegetation from './world/Vegetation.js';
+import Grass from './world/Grass.js';
 import Fireflies from './world/Fireflies.js';
 import Particles from './fx/Particles.js';
 import PlayerController from './player/PlayerController.js';
 import BuildSystem from './build/BuildSystem.js';
 import SpellManager from './magic/SpellManager.js';
 import Wisps from './creatures/Wisps.js';
+import Butterflies from './creatures/Butterflies.js';
 import Golems from './creatures/Golem.js';
 import Unicorns from './creatures/Unicorns.js';
 import AudioEngine from './audio/AudioEngine.js';
@@ -63,12 +73,14 @@ const SYSTEM_ORDER = [
   ['water', Water],
   ['islands', FloatingIslands],
   ['vegetation', Vegetation],
+  ['grass', Grass],
   ['fireflies', Fireflies],
   ['particles', Particles],
   ['player', PlayerController],
   ['build', BuildSystem],
   ['spells', SpellManager],
   ['wisps', Wisps],
+  ['butterflies', Butterflies],
   ['golems', Golems],
   ['unicorns', Unicorns],
   ['audio', AudioEngine],
@@ -87,6 +99,34 @@ for (const [name, SystemClass] of SYSTEM_ORDER) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Post-processing (pmndrs/postprocessing). One RenderPass + one merged
+// EffectPass keeps this at exactly two fullscreen passes (+ bloom mip chain).
+// HalfFloat buffer keeps the pipeline HDR; three skips tone mapping when
+// rendering into a target, and postprocessing applies renderer.toneMapping
+// (ACESFilmic) + sRGB conversion once, in the final pass — no double-mapping.
+// Bloom threshold sits above the tone-map shoulder so only emissives, the sun
+// disc and glow sprites bloom, not the whole lit scene.
+// ---------------------------------------------------------------------------
+const composer = new EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType });
+composer.addPass(new RenderPass(scene, camera));
+composer.addPass(new EffectPass(
+  camera,
+  new BloomEffect({
+    luminanceThreshold: 0.85,
+    luminanceSmoothing: 0.18,
+    intensity: 0.9,
+    mipmapBlur: true,
+  }),
+  new ChromaticAberrationEffect({
+    offset: new THREE.Vector2(0.0008, 0.0012), // barely-there fringe, radially gated below
+    radialModulation: true,
+    modulationOffset: 0.55, // center stays clean, only screen edges fringe
+  }),
+  new VignetteEffect({ offset: 0.32, darkness: 0.45 }),
+));
+ctx.fx = { composer }; // handle for later agents (extra passes, tweaks)
+
 // Adaptive resolution: the game is fill-rate bound, so step pixelRatio in 0.25
 // increments based on an EMA of frame time. Hysteresis: at most one step per 2s.
 const PERF = {
@@ -101,7 +141,10 @@ let lastScaleCheck = performance.now();
 function applyPixelRatio(ratio) {
   ctx.perf.pixelRatio = ratio;
   renderer.setPixelRatio(ratio);
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  // composer.setSize calls renderer.setSize itself, then resizes every pass's
+  // buffers to the new drawing-buffer size — the adaptive ratio shrinks the
+  // whole post chain, not just the scene render.
+  composer.setSize(window.innerWidth, window.innerHeight);
 }
 
 window.addEventListener('resize', () => {
@@ -151,7 +194,7 @@ const loop = () => {
       system.update = null; // disable the broken system instead of spamming every frame
     }
   }
-  renderer.render(scene, camera);
+  composer.render(dt);
 };
 
 // ---------------------------------------------------------------------------
@@ -175,7 +218,7 @@ async function boot() {
   if (loadingText) loadingText.textContent = 'Opening your eyes…';
   for (let i = 0; i < 2; i++) {
     renderer.shadowMap.needsUpdate = true;
-    renderer.render(scene, camera);
+    composer.render(1 / 60); // warm the full post chain (bloom mips, effect shaders) too
     await new Promise(requestAnimationFrame); // let the GPU breathe between frames
   }
 

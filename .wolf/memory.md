@@ -87,3 +87,8 @@
 | 15:29 | Edited src/magic/spells/Conjure.js | added 1 condition(s) | ~172 |
 | 15:29 | Edited src/magic/spells/Conjure.js | 4→7 lines | ~60 |
 | 15:32 | Conjure level-up: cast on existing structure upgrades it (bigger + finer materials) up to L5, then refused; upscaleBlueprint + shell extraction + removeCells in BuildSystem | src/build/BuildSystem.js, src/magic/spells/Conjure.js | verified headless: 113→141→335→389→810 blocks, h11→26, cast 6 cancelled | ~28k |
+| 15:33 | Session end: 53 writes across 12 files (AssetFactory.js, Unicorns.js, main.js, index.html, Water.js) | 17 reads | ~65251 tok |
+| 15:46 | Created scripts/qa-tmp-wf2.mjs | — | ~526 |
+| 15:48 | Headless QA of graphics upgrade: day/night/elevated screenshots, per-frame stats (155 calls / 126k tris / 18 passes vs baseline 78/80k) — bloom, terrain bands, grass all confirmed, zero errors | scripts/qa-tmp-wf.mjs (deleted) | ok | ~9k |
+| 15:49 | Edited src/creatures/Unicorns.js | modified Contract() | ~164 |
+| 15:49 | Edited src/creatures/Unicorns.js | 2→7 lines | ~119 |

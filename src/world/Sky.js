@@ -10,6 +10,12 @@ import * as THREE from 'three';
  *  - Stars: 1300-point shader Points (incl. a tilted Milky-Way ribbon) with
  *    per-star size/color and ~78 twinklers
  *  - Hemisphere light + animated THREE.FogExp2 on ctx.scene
+ *  - Sky-driven environment map: a PMREM bake of a tiny gradient proxy scene
+ *    feeds scene.environment so MeshStandardMaterials (water, crystals,
+ *    unicorn horns) pick up real sky reflections. Rebaked only every
+ *    ~ENV_REFRESH_SECONDS or when sun intensity jumps by ENV_SUN_DELTA —
+ *    never per frame. Budget: 6 tiny cube faces + mip chain a few times a
+ *    minute; previous render target disposed on each refresh (no VRAM leak).
  *
  * timeOfDay: 0 = midnight, 0.25 = dawn, 0.5 = noon, 0.75 = dusk. Starts at 0.35.
  * A full cycle takes ctx.config.daySeconds seconds.
@@ -49,6 +55,13 @@ const TAU = Math.PI * 2;
 
 const FOG_DENSITY_DAY = 0.0028;
 const FOG_DENSITY_NIGHT = 0.0042;
+
+// Environment-map bake policy: refresh on a slow clock or a noticeable sun
+// jump (e.g. TimeWarp), never per frame. Intensity stays modest so standard
+// materials gain sky-tinted reflections without washing out the flat shading.
+const ENV_REFRESH_SECONDS = 5;
+const ENV_SUN_DELTA = 0.15;
+const ENV_INTENSITY = 0.5;
 
 function smoothstep(edge0, edge1, x) {
   const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
@@ -162,6 +175,35 @@ const DOME_FRAG = /* glsl */ `
   }
 `;
 
+// Minimal gradient proxy for the PMREM environment bake. Shares the dome's
+// uniforms object so it always samples the live phase colors. Outputs LINEAR
+// color with no tonemapping/colorspace includes — PMREMGenerator renders with
+// NoToneMapping into a linear half-float target, so raw linear is correct.
+const ENV_FRAG = /* glsl */ `
+  uniform vec3 uHorizon;
+  uniform vec3 uMid;
+  uniform vec3 uZenith;
+  uniform vec3 uSunDir;
+  uniform vec3 uSunGlowColor;
+  uniform float uSunGlow;
+  varying vec3 vDir;
+  void main() {
+    float h = clamp(vDir.y, 0.0, 1.0);
+    vec3 col = h < 0.45
+      ? mix(uHorizon, uMid, smoothstep(0.0, 0.45, h))
+      : mix(uMid, uZenith, smoothstep(0.45, 1.0, h));
+    // below the horizon: dim grounded bounce so under-reflections aren't black
+    if (vDir.y < 0.0) {
+      vec3 ground = mix(uHorizon * 0.45, vec3(0.055, 0.085, 0.055), 0.55);
+      col = mix(uHorizon * 0.8, ground, smoothstep(0.0, -0.35, vDir.y));
+    }
+    // sun blob so glossy materials catch a warm specular-ish hotspot
+    float d = max(dot(vDir, uSunDir), 0.0);
+    col += uSunGlowColor * (pow(d, 64.0) * 1.6 + pow(d, 6.0) * 0.25) * uSunGlow;
+    gl_FragColor = vec4(col, 1.0);
+  }
+`;
+
 const STAR_VERT = /* glsl */ `
   attribute float aSize;
   attribute float aTwinkle;
@@ -226,8 +268,18 @@ export default class Sky {
     this.fog = new THREE.FogExp2(0xa8d8ef, FOG_DENSITY_DAY);
     ctx.scene.fog = this.fog;
 
+    // Sky-driven environment map (PMREM). Any failure degrades gracefully:
+    // log once, run without scene.environment.
+    this._pmrem = null;
+    this._envScene = null;
+    this._envRT = null;
+    this._envBakeTime = 0;
+    this._envBakeSunI = 0;
+    this._buildEnvMap();
+
     // Prime everything so frame 0 already looks right.
     this._apply(0);
+    this._bakeEnv(0);
   }
 
   // -------------------------------------------------------------------------
@@ -407,6 +459,56 @@ export default class Sky {
       sprite.renderOrder = -8; // after dome (-10) and stars (-9)
       this.cloudGroup.add(sprite);
     }
+  }
+
+  _buildEnvMap() {
+    try {
+      this._pmrem = new THREE.PMREMGenerator(this.ctx.renderer);
+      // Tiny proxy scene: one inside-facing low-seg sphere running the
+      // gradient shader. Shares this.domeUniforms, so phase colors / sun
+      // direction are always current at bake time with zero extra bookkeeping.
+      this._envScene = new THREE.Scene();
+      const proxy = new THREE.Mesh(
+        new THREE.SphereGeometry(10, 16, 10),
+        new THREE.ShaderMaterial({
+          uniforms: this.domeUniforms,
+          vertexShader: DOME_VERT,
+          fragmentShader: ENV_FRAG,
+          side: THREE.BackSide,
+          depthWrite: false,
+        })
+      );
+      proxy.frustumCulled = false;
+      this._envScene.add(proxy);
+      this.ctx.scene.environmentIntensity = ENV_INTENSITY;
+    } catch (err) {
+      console.warn('[Sky] PMREM env map unavailable — continuing without it.', err);
+      this._disposeEnv();
+    }
+  }
+
+  /** Render the proxy scene through PMREM and swap scene.environment. */
+  _bakeEnv(elapsed) {
+    if (!this._pmrem) return;
+    try {
+      const rt = this._pmrem.fromScene(this._envScene, 0, 0.5, 40);
+      const old = this._envRT;
+      this._envRT = rt;
+      this.ctx.scene.environment = rt.texture;
+      if (old) old.dispose(); // free previous target — no VRAM leak
+      this._envBakeTime = elapsed;
+      this._envBakeSunI = this.getSunIntensity();
+    } catch (err) {
+      console.warn('[Sky] env map bake failed — disabling sky reflections.', err);
+      this._disposeEnv();
+    }
+  }
+
+  _disposeEnv() {
+    if (this.ctx.scene.environment) this.ctx.scene.environment = null;
+    if (this._envRT) { this._envRT.dispose(); this._envRT = null; }
+    if (this._pmrem) { this._pmrem.dispose(); this._pmrem = null; }
+    this._envScene = null;
   }
 
   _buildStars() {
@@ -685,5 +787,18 @@ export default class Sky {
     // ---- fog ---------------------------------------------------------------
     this.fog.color.copy(this._colFog);
     this.fog.density = FOG_DENSITY_NIGHT + (FOG_DENSITY_DAY - FOG_DENSITY_NIGHT) * sunFactor;
+
+    // ---- environment map ---------------------------------------------------
+    // Rebake on a slow clock, or immediately on a big sun jump (TimeWarp /
+    // fast dawn). sunFactor === getSunIntensity() here. dt>0 skips frame 0,
+    // which the constructor bakes explicitly.
+    if (this._pmrem && dt > 0) {
+      if (
+        elapsed - this._envBakeTime >= ENV_REFRESH_SECONDS ||
+        Math.abs(sunFactor - this._envBakeSunI) > ENV_SUN_DELTA
+      ) {
+        this._bakeEnv(elapsed);
+      }
+    }
   }
 }

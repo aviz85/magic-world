@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T12:03:29.922Z
-> Files: 49 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T12:49:39.882Z
+> Files: 55 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -34,28 +34,35 @@
 
 ## scripts/
 
+- `qa-tmp-wf.mjs` — Temp QA pass 2: full-frame renderer stats, 404 source, elevated terrain shot. (~768 tok)
+- `qa-tmp-wf2.mjs` — Temp QA pass 3: precise per-visual-frame stats averaged over rAF ticks. (~526 tok)
 - `qa.mjs` — Headless QA: load the game, collect errors, screenshot title + in-game. (~760 tok)
 - `qa2.mjs` — Functional smoke test: exercise build/spell/creature systems in-engine, then screenshot. (~840 tok)
 
 ## src/
 
-- `main.js` — renderer: applyPixelRatio, boot (~1938 tok)
+- `main.js` — renderer: applyPixelRatio, boot (~2478 tok)
 - `style.css` — Styles: 2 rules (~98 tok)
 
 ## src/audio/
 
 - `AudioEngine.js` — AudioEngine — pure WebAudio synth for Magic World. (~6102 tok)
 
+## src/build/
+
+- `BuildSystem.js` — Top y of the highest block whose column contains world point (x,z) and (~7668 tok)
+
 ## src/core/
 
-- `AssetFactory.js` — rng helper: float in [min, max) (~4235 tok)
+- `AssetFactory.js` — rng helper: float in [min, max) (~5274 tok)
 - `EventBus.js` — EventBus — tiny, robust synchronous pub/sub for Magic World. (~1629 tok)
 - `Input.js` — Input — pointer-lock + keyboard/mouse state for Magic World. (~2415 tok)
 
 ## src/creatures/
 
+- `Butterflies.js` — Butterflies — 8 pastel butterflies that flutter over the meadows by day. (~3603 tok)
 - `Golem.js` — Golems — stone golem manager for Magic World. (~4931 tok)
-- `Unicorns.js` — Unicorns 🦄 — a small herd of 3 low-poly unicorns that roam the island. (~3261 tok)
+- `Unicorns.js` — Unicorns 🦄 — a small herd of 3 low-poly unicorns that roam the island. (~3434 tok)
 - `Unicorns.js` — Unicorns 🦄 — herd of 3 low-poly unicorns: wander/graze/startle state machine, glowing horn, sparkle trail. (~3200 tok)
 - `Wisps.js` — Wisps — 12 curious glowing lanterns that wander the island. (~3813 tok)
 
@@ -70,7 +77,7 @@
 ## src/magic/spells/
 
 - `Blink.js` — Blink ⚡ — short-range arcane teleport. (~1706 tok)
-- `Conjure.js` — Conjure 🏰 — divine architecture. (~1846 tok)
+- `Conjure.js` — Conjure 🏰 — divine architecture. (~3195 tok)
 - `Fireball.js` — Impact punch: camera shake scaled by proximity to the blast. (~4028 tok)
 - `GrowTree.js` — GrowTree 🌳 — nature magic. (~2563 tok)
 - `LightOrb.js` — LightOrb 💡 — a floating mote of warm light. (~2786 tok)
@@ -97,8 +104,10 @@
 
 - `Fireflies.js` — Fireflies — ~380 additive glowing motes drifting above the terrain in a (~3219 tok)
 - `FloatingIslands.js` — FloatingIslands — 7 bobbing, slowly drifting sky islands. (~5286 tok)
+- `Grass.js` — Grass — one InstancedMesh of ~2000 wind-swaying 2-triangle cross blades; seeded patch placement in the meadow band, GPU sway via onBeforeCompile uTime, 1 draw call. (~2600 tok)
+- `Grass.js` — --------------------------------------------------------------------------- (~2932 tok)
 - `Noise.js` — Noise.js — seeded PRNG + 2D gradient noise + fractal Brownian motion. (~1523 tok)
-- `Sky.js` — Sky — full day/night cycle for Magic World. (~7606 tok)
-- `Terrain.js` — Terrain — fbm island heightfield (160x160 verts over 240x240 world units). (~6069 tok)
+- `Sky.js` — Sky — full day/night cycle + PMREM sky-driven scene.environment (rebake every ~5s or sunI delta >0.15, intensity 0.5). (~8910 tok)
+- `Terrain.js` — --------------------------------------------------------------------------- (~6497 tok)
 - `Vegetation.js` — Vegetation — seeded scatter of trees, glowing mushrooms, crystal clusters and (~6617 tok)
 - `Water.js` — --------------------------------------------------------------------------- (~5733 tok)

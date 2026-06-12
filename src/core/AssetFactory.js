@@ -86,6 +86,8 @@ const matCache = new Map();
 /**
  * Cached flat-shaded MeshStandardMaterial. Same params -> same instance,
  * so repeated assets share materials (fewer state changes, sync pulses).
+ * `grain` names a procedural grayscale .map ('bark' | 'rock'); it is part
+ * of the cache key so textured materials never leak across asset types.
  */
 function standardMat({
   color,
@@ -95,10 +97,12 @@ function standardMat({
   metalness = 0,
   transparent = false,
   opacity = 1,
+  grain = null,
 } = {}) {
   const key =
     `${color}|${emissive}|${emissiveIntensity}|${roughness}|` +
-    `${metalness}|${transparent ? 1 : 0}|${transparent ? opacity : 1}`;
+    `${metalness}|${transparent ? 1 : 0}|${transparent ? opacity : 1}|` +
+    `${grain || ''}`;
   let m = matCache.get(key);
   if (!m) {
     m = new THREE.MeshStandardMaterial({
@@ -110,6 +114,7 @@ function standardMat({
       transparent,
       opacity,
       flatShading: true,
+      map: grain ? getGrainTexture(grain) : null,
     });
     m.userData.baseEmissiveIntensity = emissiveIntensity;
     matCache.set(key, m);
@@ -138,8 +143,101 @@ export function canvasTexture(size, drawFn) {
 }
 
 /* ------------------------------------------------------------------ */
-/* makeTreeMesh                                                        */
+/* Procedural grain textures (module-cached, built once on first use)  */
 /* ------------------------------------------------------------------ */
+//
+// Grayscale near-white multiplier maps: material.color stays the source of
+// hue, the map only adds ~12-18% luminance variation. 64px, RepeatWrapping,
+// tileable (streaks/speckles are stamped at wrapped offsets so edges meet).
+// Seeded with mulberry32 -> identical every session. Two tiny canvases
+// total; zero per-frame cost.
+
+const grainCache = new Map();
+
+function getGrainTexture(kind) {
+  let tex = grainCache.get(kind);
+  if (tex) return tex;
+
+  if (kind === 'bark') {
+    // Vertical streaks: full-height strokes tile trivially in v; each streak
+    // is also stamped at x±size so the u edge wraps seamlessly.
+    tex = canvasTexture(64, (ctx2d, size) => {
+      const rng = mulberry32(0xbaa9c);
+      ctx2d.fillStyle = 'rgb(232,232,232)';
+      ctx2d.fillRect(0, 0, size, size);
+      for (let i = 0; i < 26; i++) {
+        const x = rng() * size;
+        const w = 1 + rng() * 2.5;
+        const lum = 205 + Math.floor(rng() * 45); // 205-249 vs 232 base
+        ctx2d.fillStyle = `rgb(${lum},${lum},${lum})`;
+        ctx2d.globalAlpha = 0.45 + rng() * 0.45;
+        for (const dx of [-size, 0, size]) {
+          ctx2d.fillRect(x + dx, 0, w, size);
+        }
+      }
+      // Sparse short knots break up the verticals.
+      for (let i = 0; i < 10; i++) {
+        const x = rng() * size;
+        const y = rng() * size;
+        const w = 1 + rng() * 2;
+        const h = 4 + rng() * 9;
+        const lum = 204 + Math.floor(rng() * 20);
+        ctx2d.fillStyle = `rgb(${lum},${lum},${lum})`;
+        ctx2d.globalAlpha = 0.35 + rng() * 0.35;
+        for (const dx of [-size, 0, size]) {
+          for (const dy of [-size, 0, size]) {
+            ctx2d.fillRect(x + dx, y + dy, w, h);
+          }
+        }
+      }
+      ctx2d.globalAlpha = 1;
+    });
+    tex.repeat.set(2, 1);
+  } else {
+    // 'rock': speckles + a few larger mottled blotches, stamped at all nine
+    // wrapped offsets for u/v tileability.
+    tex = canvasTexture(64, (ctx2d, size) => {
+      const rng = mulberry32(0x50c4e);
+      ctx2d.fillStyle = 'rgb(230,230,230)';
+      ctx2d.fillRect(0, 0, size, size);
+      for (let i = 0; i < 14; i++) { // soft blotches first (under speckles)
+        const x = rng() * size;
+        const y = rng() * size;
+        const r = 4 + rng() * 8;
+        const lum = 212 + Math.floor(rng() * 34); // 212-245
+        ctx2d.fillStyle = `rgb(${lum},${lum},${lum})`;
+        ctx2d.globalAlpha = 0.3 + rng() * 0.25;
+        for (const dx of [-size, 0, size]) {
+          for (const dy of [-size, 0, size]) {
+            ctx2d.beginPath();
+            ctx2d.arc(x + dx, y + dy, r, 0, Math.PI * 2);
+            ctx2d.fill();
+          }
+        }
+      }
+      ctx2d.globalAlpha = 1;
+      for (let i = 0; i < 120; i++) { // fine speckle grain
+        const x = rng() * size;
+        const y = rng() * size;
+        const s = 1 + Math.floor(rng() * 2);
+        const lum = 203 + Math.floor(rng() * 47); // 203-249
+        ctx2d.fillStyle = `rgb(${lum},${lum},${lum})`;
+        ctx2d.globalAlpha = 0.4 + rng() * 0.4;
+        for (const dx of [-size, 0, size]) {
+          for (const dy of [-size, 0, size]) {
+            ctx2d.fillRect(x + dx, y + dy, s, s);
+          }
+        }
+      }
+      ctx2d.globalAlpha = 1;
+    });
+  }
+
+  tex.wrapS = THREE.RepeatWrapping;
+  tex.wrapT = THREE.RepeatWrapping;
+  grainCache.set(kind, tex);
+  return tex;
+}
 
 const TRUNK_COLOR = 0x7a5230;
 const NATURAL_CANOPY = [0x3f9b4f, 0x2f8a45];
@@ -159,7 +257,7 @@ export function makeTreeMesh({ scale = 1, magical = false, seed = 0 } = {}) {
   // Trunk: r 0.18-0.28, h 1.4-2.4 (world design doc).
   const trunkR = range(rng, 0.18, 0.28);
   const trunkH = range(rng, 1.4, 2.4);
-  const trunkMat = standardMat({ color: TRUNK_COLOR, roughness: 0.95 });
+  const trunkMat = standardMat({ color: TRUNK_COLOR, roughness: 0.95, grain: 'bark' });
   const trunk = new THREE.Mesh(unitTrunk(), trunkMat);
   trunk.scale.set(trunkR, trunkH, trunkR);
   trunk.position.y = trunkH * 0.5;
@@ -411,6 +509,7 @@ export function makeRockMesh({ scale = 1, seed = 0 } = {}) {
   const mat = standardMat({
     color: ROCK_COLORS[rangeInt(rng, 0, ROCK_COLORS.length - 1)],
     roughness: 0.95,
+    grain: 'rock',
   });
 
   const rock = new THREE.Mesh(geom, mat);

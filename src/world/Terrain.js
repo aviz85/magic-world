@@ -21,6 +21,9 @@ import { createNoise2D, fbm } from './Noise.js';
 // into pale shallows; wet sand darkens the waterline; a macro hue field drifts
 // the meadows between lush green and sun-warmed gold in broad painterly sweeps;
 // fey-meadow teal patches and persistent scorch marks from spells layer on top.
+// Baked vertex AO: 8 height taps on two rings (~2.1m diagonal + ~3.0m axial)
+// darken crevice vertices up to 25% and lend crests a faint catch-light —
+// computed only at generation / sculpt-recolor time, zero per-frame cost.
 // ---------------------------------------------------------------------------
 
 const SEED = 1337;
@@ -113,6 +116,12 @@ export default class Terrain {
     // scratch objects — reused everywhere, zero allocations in hot paths
     this._cA = new THREE.Color();
     this._cB = new THREE.Color();
+
+    // AO tap geometry (bake-time only): inner diagonal ring at step·√2
+    // (~2.1m) and outer axial ring at 2·step (~3.0m). Inverse distances
+    // turn height deltas into slope-toward-neighbor terms.
+    this._aoInvDiag = 1 / (this.step * Math.SQRT2);
+    this._aoInvAxis = 1 / (this.step * 2);
 
     this._generate();
     this._buildMesh();
@@ -298,8 +307,8 @@ export default class Terrain {
     const y = hd[i];
     const c = this._cA;
 
-    // neighbor taps — feed both slope (rock blending) and cavity (a cheap
-    // ambient-occlusion stand-in: dips shade darker, crests catch light)
+    // neighbor taps — 1-ring axial pairs feed the slope estimate that drives
+    // rock blending (equivalent to thresholding the vertex normal's Y)
     const xm = Math.max(ix - 1, 0);
     const xp = Math.min(ix + 1, res - 1);
     const zm = Math.max(iz - 1, 0);
@@ -311,7 +320,24 @@ export default class Terrain {
     const dhdx = (hxp - hxm) / ((xp - xm) * this.step);
     const dhdz = (hzp - hzm) / ((zp - zm) * this.step);
     const slope = Math.sqrt(dhdx * dhdx + dhdz * dhdz);
-    const cav = (hxm + hxp + hzm + hzp) * 0.25 - y; // >0 in hollows, <0 on crests
+
+    // baked vertex AO — 8 taps on two rings: 4 diagonal at ±1 (~2.1m) and
+    // 4 axial at ±2 (~3.0m). Each tap contributes the slope rising toward
+    // that neighbor; the signed mean is positive in crevices/valleys and
+    // negative on crests. Border taps clamp to the edge vertex, which only
+    // affects the underwater rim. Bake-time only — zero runtime cost.
+    const x2m = Math.max(ix - 2, 0);
+    const x2p = Math.min(ix + 2, res - 1);
+    const z2m = Math.max(iz - 2, 0);
+    const z2p = Math.min(iz + 2, res - 1);
+    const invD = this._aoInvDiag;
+    const invA = this._aoInvAxis;
+    const occ = 0.125 * (
+      (hd[zm * res + xm] - y) * invD + (hd[zm * res + xp] - y) * invD +
+      (hd[zp * res + xm] - y) * invD + (hd[zp * res + xp] - y) * invD +
+      (hd[iz * res + x2m] - y) * invA + (hd[iz * res + x2p] - y) * invA +
+      (hd[z2m * res + ix] - y) * invA + (hd[z2p * res + ix] - y) * invA
+    );
 
     // height bands — boundaries dithered by the precomputed noise field and
     // blended across wide, overlapping smoothsteps for painterly gradients
@@ -365,10 +391,11 @@ export default class Terrain {
     const burn = this._scorch[i];
     if (burn > 0) c.lerp(this._scorchColor, 0.5 * burn);
 
-    // cavity shading: hollows sink into shadow, crests catch the light —
+    // AO shading: crevices sink into soft shadow (capped at 25% darkening
+    // so valleys stay pastel, never muddy), crests catch a faint light —
     // gives the flat-shaded facets painterly depth for free
     const shade =
-      1 - 0.2 * smoothstep(0, 1.1, cav) + 0.12 * smoothstep(0, 1.1, -cav);
+      1 - 0.25 * smoothstep(0.05, 0.85, occ) + 0.1 * smoothstep(0.04, 0.6, -occ);
 
     // subtle deterministic per-vertex variation — keeps big facets lively
     const jitter = shade * (1 + (vertexHash(ix, iz) - 0.5) * 0.07);
@@ -454,8 +481,9 @@ export default class Terrain {
 
     if (!touched) return;
 
-    // +1 ring so slope-driven colors at the brush edge stay correct
-    this._refreshRegion(ix0 - 1, ix1 + 1, iz0 - 1, iz1 + 1);
+    // +2 ring so slope- and AO-driven colors at the brush edge stay correct
+    // (AO taps reach 2 vertices out)
+    this._refreshRegion(ix0 - 2, ix1 + 2, iz0 - 2, iz1 + 2);
     this.geometry.computeVertexNormals();
     this.geometry.computeBoundingSphere();
     this.geometry.computeBoundingBox();
