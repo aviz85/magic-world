@@ -34,3 +34,5 @@
 | 15:03 | Edited src/world/Water.js | expanded (+16 lines) | ~238 |
 | 15:03 | Edited src/world/Water.js | added 3 condition(s) | ~333 |
 | 15:06 | Loading veil gated on compileAsync+warmup frames; underwater blue tint (fog override + veil, DoubleSide water) | index.html, src/main.js, src/world/Water.js | verified headless: __gameReady fires, veil removed, fog 0.048/#3776a0 underwater, restores on surfacing | ~30k |
+| 15:06 | Session end: 11 writes across 5 files (AssetFactory.js, Unicorns.js, main.js, index.html, Water.js) | 7 reads | ~18509 tok |
+| 15:08 | Session end: 11 writes across 5 files (AssetFactory.js, Unicorns.js, main.js, index.html, Water.js) | 7 reads | ~18509 tok |
