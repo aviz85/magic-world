@@ -10,10 +10,17 @@ import { PREFAB_NAMES } from '../../build/Prefabs.js';
  *             a 2s golden sparkle rain drifts down onto the rising blocks,
  *             ending in a completion fanfare flash synced with `prefab:place`'s
  *             chord swell.
+ * Upgrades  : casting onto an EXISTING conjured structure ascends it — the old
+ *             blocks dissolve and the prefab re-rises one level bigger and
+ *             finer (marble veins L3+, gold filigree L4+, crystal crown L5),
+ *             up to level 5. At level 5 further casts on it are refused
+ *             (toast, no mana). Registry is session-only — structures loaded
+ *             from a save are plain blocks and can't be upgraded.
  * Cancelled : no ground hit → toast + castInfo.cancelled = true (no mana).
  *
  * Color language (binding): divine/conjure = gold 0xffd700.
- * Budget: ~190 particles staggered over 2s, 2 flashes — well under the pools.
+ * Budget: ~190 particles staggered over 2s, 2 flashes — well under the pools
+ *         (upgrade rain widens with level but keeps the same emit rate).
  */
 
 const RAIN_DURATION = 2;       // matches placePrefab's staggered rise
@@ -26,6 +33,8 @@ const COL_GOLD = 0xffd700;
 const COL_GOLD_PALE = 0xfff0aa;
 const COL_GOLD_WARM = 0xffe066;
 
+const MAX_LEVEL = 5;
+
 export default class Conjure {
   static id = 'conjure';
   static label = 'Conjure';
@@ -37,6 +46,9 @@ export default class Conjure {
     this.ctx = ctx;
     this._index = 0;
     this.current = PREFAB_NAMES[0];
+    // Conjured-structure registry for level upgrades:
+    // { name, level, origin:{x,y,z}, cells, centerX, centerZ, radius, height }
+    this._built = [];
     // Scratch vector — reused for every particles call inside the effect
     // update so the hot path allocates nothing (Particles copies positions).
     this._pos = new THREE.Vector3();
@@ -73,12 +85,121 @@ export default class Conjure {
       return null;
     }
 
-    const { particles, build } = this.ctx.systems;
+    // ---------------------------------------- upgrade an existing structure?
+    const target = this._findStructureAt(hitPoint);
+    if (target) {
+      if (target.level >= MAX_LEVEL) {
+        castInfo.cancelled = true; // refused — no mana
+        this.ctx.events.emit('ui:message', {
+          text: `The ${target.name} shines at its final form — level ${MAX_LEVEL} ✨`,
+          duration: 2.5,
+        });
+        return null;
+      }
+      return this._upgrade(target);
+    }
+
+    // ----------------------------------------------------- fresh conjuration
+    const { build } = this.ctx.systems;
     const origin = hitPoint.clone(); // own the position; castInfo may be reused
 
     // The build itself — placePrefab handles the staggered bottom-up rise
     // (~1.5s) and emits `prefab:place` for audio/HUD.
-    build.placePrefab(this.current, origin);
+    const res = build.placePrefab(this.current, origin);
+    if (res) this._register(this.current, 1, res);
+
+    return this._goldenRain(origin, 1);
+  }
+
+  // ----------------------------------------------------------- upgrades
+
+  /**
+   * Find the conjured structure (if any) whose footprint contains `p` —
+   * an AABB test over the placed cells, inflated by 1 cell so aiming at the
+   * ground right beside a wall still counts as "on the structure".
+   */
+  _findStructureAt(p) {
+    for (let i = this._built.length - 1; i >= 0; i--) {
+      const s = this._built[i];
+      if (p.x < s.minX - 1 || p.x > s.maxX + 2) continue; // cell x spans [x, x+1)
+      if (p.z < s.minZ - 1 || p.z > s.maxZ + 2) continue;
+      if (p.y < s.origin.y - 2 || p.y > s.origin.y + s.height + 3) continue;
+      return s;
+    }
+    return null;
+  }
+
+  /** Record (or refresh) a structure's footprint from placePrefab's result. */
+  _register(name, level, res, existing = null) {
+    let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, maxY = 0;
+    for (const c of res.cells) {
+      if (c.x < minX) minX = c.x;
+      if (c.x > maxX) maxX = c.x;
+      if (c.z < minZ) minZ = c.z;
+      if (c.z > maxZ) maxZ = c.z;
+      if (c.y > maxY) maxY = c.y;
+    }
+    const rec = existing || {};
+    rec.name = name;
+    rec.level = level;
+    rec.origin = res.origin;
+    rec.cells = res.cells;
+    rec.centerX = (minX + maxX + 1) / 2;
+    rec.centerZ = (minZ + maxZ + 1) / 2;
+    rec.minX = minX;
+    rec.maxX = maxX;
+    rec.minZ = minZ;
+    rec.maxZ = maxZ;
+    rec.height = maxY - res.origin.y + 1;
+    if (!existing) this._built.push(rec);
+    return rec;
+  }
+
+  /** Dissolve the old structure and raise it again one level grander. */
+  _upgrade(target) {
+    const { build, particles } = this.ctx.systems;
+    const next = target.level + 1;
+
+    // Tear down, then re-raise the same blueprint one level bigger at the
+    // same origin (placePrefab re-runs the staggered rise animation).
+    build.removeCells(target.cells);
+    const res = build.placePrefab(
+      target.name,
+      this._pos.set(target.origin.x, target.origin.y, target.origin.z),
+      { level: next }
+    );
+    if (!res) {
+      // Should not happen (the site was just cleared) — fail soft, drop the
+      // record so the ghost footprint can't swallow future casts.
+      this._built.splice(this._built.indexOf(target), 1);
+      this.ctx.events.emit('ui:message', { text: 'The ascension fizzled…', duration: 2 });
+      return null;
+    }
+    this._register(target.name, next, res, target);
+
+    this.ctx.events.emit('ui:message', {
+      text: `🏰 The ${target.name} ascends — level ${next}/${MAX_LEVEL}!`,
+      duration: 2.5,
+    });
+
+    // Ascension pillar — taller and whiter with every level.
+    const pos = this._pos.set(target.centerX, target.origin.y + 2 + next * 1.5, target.centerZ);
+    particles.flash(pos, COL_GOLD_PALE, 4.5 + next, 0.5);
+
+    // Rain over the (bigger) new footprint, centered on the structure.
+    const origin = new THREE.Vector3(target.centerX, target.origin.y, target.centerZ);
+    return this._goldenRain(origin, 1 + 0.25 * (next - 1));
+  }
+
+  // -------------------------------------------------------------- effects
+
+  /**
+   * Shared cast spectacle: anticipation beat + golden sparkle rain + fanfare.
+   * `spreadMult` widens the rain footprint for higher-level structures.
+   */
+  _goldenRain(origin, spreadMult) {
+    const { particles } = this.ctx.systems;
+    const spread = RAIN_SPREAD * spreadMult;
 
     // Anticipation beat: a high golden flash above the site as the sky opens,
     // plus a halo of pale gold blooming where the structure will stand and a
@@ -115,9 +236,9 @@ export default class Conjure {
           rainTimer -= RAIN_INTERVAL;
           tick++;
           pos.set(
-            origin.x + (Math.random() * 2 - 1) * RAIN_SPREAD,
+            origin.x + (Math.random() * 2 - 1) * spread,
             origin.y + RAIN_HEIGHT,
-            origin.z + (Math.random() * 2 - 1) * RAIN_SPREAD
+            origin.z + (Math.random() * 2 - 1) * spread
           );
           const rain = this._rainOpts;
           rain.color = (tick & 1) ? COL_GOLD : COL_GOLD_PALE;

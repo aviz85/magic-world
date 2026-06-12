@@ -35,6 +35,90 @@ function colKey(x, z) {
   return x + '|' + z;
 }
 
+// ---------------------------------------------------------------------------
+// Conjure level upgrades — blueprint upscaling.
+//
+// Level N rescales a prefab's voxel blueprint by LEVEL_SCALES[N] (xz, y) via
+// nearest-neighbor sampling around the blueprint's footprint center, so the
+// structure grows in place instead of drifting toward +x/+z. Fully enclosed
+// cells are dropped afterwards (shell extraction) — thickened walls would
+// otherwise cube the mesh count for blocks nobody can ever see. Higher levels
+// also consecrate materials: marble veins from L3, gold filigree from L4,
+// and a crystal crown on the top layers at L5.
+// ---------------------------------------------------------------------------
+
+const LEVEL_SCALES = [
+  null, null,             // levels 0-1: base blueprint, no upscale
+  { xz: 1.15, y: 1.3 },   // 2
+  { xz: 1.3,  y: 1.6 },   // 3
+  { xz: 1.5,  y: 1.95 },  // 4
+  { xz: 1.7,  y: 2.35 },  // 5
+];
+export const MAX_PREFAB_LEVEL = 5;
+
+function upscaleBlueprint(blocks, level) {
+  const s = LEVEL_SCALES[Math.min(level, MAX_PREFAB_LEVEL)];
+  if (!s) return blocks;
+
+  // Source occupancy + bounds.
+  const src = new Map();
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity, maxY = 0;
+  for (const b of blocks) {
+    src.set(cellKey(b.x, b.y, b.z), b.type);
+    if (b.x < minX) minX = b.x;
+    if (b.x > maxX) maxX = b.x;
+    if (b.z < minZ) minZ = b.z;
+    if (b.z > maxZ) maxZ = b.z;
+    if (b.y > maxY) maxY = b.y;
+  }
+  const cx = (minX + maxX + 1) / 2; // footprint center — growth pivot
+  const cz = (minZ + maxZ + 1) / 2;
+
+  // Nearest-neighbor resample over the scaled bounding box.
+  const X0 = Math.floor((minX - cx) * s.xz + cx);
+  const X1 = Math.ceil((maxX + 1 - cx) * s.xz + cx);
+  const Z0 = Math.floor((minZ - cz) * s.xz + cz);
+  const Z1 = Math.ceil((maxZ + 1 - cz) * s.xz + cz);
+  const Y1 = Math.ceil((maxY + 1) * s.y);
+  const filled = new Set();
+  const out = [];
+  for (let y = 0; y < Y1; y++) {
+    const sy = Math.floor((y + 0.5) / s.y);
+    for (let x = X0; x < X1; x++) {
+      const sx = Math.floor((x + 0.5 - cx) / s.xz + cx);
+      for (let z = Z0; z < Z1; z++) {
+        const sz = Math.floor((z + 0.5 - cz) / s.xz + cz);
+        const type = src.get(cellKey(sx, sy, sz));
+        if (!type) continue;
+        filled.add(cellKey(x, y, z));
+        out.push({ x, y, z, type });
+      }
+    }
+  }
+
+  // Shell extraction + material consecration.
+  let topY = 0;
+  for (const b of out) if (b.y > topY) topY = b.y;
+  const shell = [];
+  for (const b of out) {
+    if (
+      b.y > 0 &&
+      filled.has(cellKey(b.x + 1, b.y, b.z)) && filled.has(cellKey(b.x - 1, b.y, b.z)) &&
+      filled.has(cellKey(b.x, b.y + 1, b.z)) && filled.has(cellKey(b.x, b.y - 1, b.z)) &&
+      filled.has(cellKey(b.x, b.y, b.z + 1)) && filled.has(cellKey(b.x, b.y, b.z - 1))
+    ) continue; // invisible interior
+    shell.push(b);
+  }
+  for (let i = 0; i < shell.length; i++) {
+    const b = shell[i];
+    if (b.type !== 'stone') continue; // only base stone is consecrated
+    if (level >= 5 && b.y >= topY - 1) b.type = 'crystal';
+    else if (level >= 4 && i % 6 === 0) b.type = 'gold';
+    else if (level >= 3 && i % 4 === 0) b.type = 'marble';
+  }
+  return shell;
+}
+
 export default class BuildSystem {
   constructor(ctx) {
     this.ctx = ctx;
@@ -301,17 +385,24 @@ export default class BuildSystem {
   /**
    * Place a prefab at origin (Vector3, snapped to grid). Blocks land solid
    * immediately, then animate in as a bottom-up staggered wave over ~1.5s.
+   *
+   * `level` (1-5, Conjure upgrades): >1 runs the blueprint through
+   * upscaleBlueprint — bigger footprint, taller, finer materials.
+   * Returns { placed, cells, origin } (or null) so callers can track and
+   * later remove exactly what was built.
    */
-  placePrefab(name, origin) {
+  placePrefab(name, origin, { level = 1 } = {}) {
     const prefab = getPrefab(name);
-    if (!prefab) return false;
+    if (!prefab) return null;
+
+    const blocks = level > 1 ? upscaleBlueprint(prefab.blocks, level) : prefab.blocks;
 
     const ox = Math.floor(origin.x);
     const oy = Math.round(origin.y);
     const oz = Math.floor(origin.z);
 
     // bottom-up wave: sort by (y, then x+z)
-    const sorted = prefab.blocks.slice().sort((a, b) => (a.y - b.y) || ((a.x + a.z) - (b.x + b.z)));
+    const sorted = blocks.slice().sort((a, b) => (a.y - b.y) || ((a.x + a.z) - (b.x + b.z)));
 
     // per-block delay: y * 0.10 + orderWithinLayer * 0.006, max ≤ 1.2s
     const delays = new Array(sorted.length);
@@ -332,6 +423,7 @@ export default class BuildSystem {
     const scale = maxDelay > 1.2 ? 1.2 / maxDelay : 1;
 
     let placed = 0;
+    const cells = [];
     for (let i = 0; i < sorted.length; i++) {
       const b = sorted[i];
       const x = ox + b.x;
@@ -357,6 +449,7 @@ export default class BuildSystem {
 
       this.blocks.set(key, { type: b.type, mesh, x, y, z });
       this._columnAdd(x, y, z); // collidable immediately
+      cells.push({ x, y, z });
       placed++;
 
       this.anims.push({
@@ -373,7 +466,36 @@ export default class BuildSystem {
     if (placed > 0) {
       this.ctx.events.emit('prefab:place', { name, origin: { x: ox, y: oy, z: oz } });
     }
-    return placed > 0;
+    return placed > 0 ? { placed, cells, origin: { x: ox, y: oy, z: oz } } : null;
+  }
+
+  /**
+   * Batch-remove cells (Conjure upgrades tear down the old structure before
+   * raising the next level). Per-block events/sounds are skipped and the
+   * dissolve dust is sampled down to ≤12 puffs, so an 800-block teardown
+   * can't flood the particle pools or the audio bus.
+   */
+  removeCells(cells) {
+    const particles = this.ctx.systems.particles;
+    const step = Math.max(1, Math.floor(cells.length / 12));
+    let removed = 0;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i];
+      const entry = this.blocks.get(cellKey(c.x, c.y, c.z));
+      if (!entry) continue; // player may have broken pieces since — fine
+      this.blocks.delete(cellKey(c.x, c.y, c.z));
+      this._columnRemove(c.x, c.y, c.z);
+      this._detachMesh(entry.mesh);
+      removed++;
+      if (particles && i % step === 0) {
+        particles.burst({
+          position: new THREE.Vector3(c.x + 0.5, c.y + 0.5, c.z + 0.5),
+          color: 0xd8cfae, count: 8, speed: 2.5, life: 0.5, size: 0.2, gravity: 6,
+        });
+      }
+    }
+    if (removed) this._meshListDirty = true;
+    return removed;
   }
 
   /** Array of live block meshes (for spell raycasts). Reused, rebuilt lazily. */
