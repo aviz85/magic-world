@@ -13,6 +13,7 @@ import BuildSystem from './build/BuildSystem.js';
 import SpellManager from './magic/SpellManager.js';
 import Wisps from './creatures/Wisps.js';
 import Golems from './creatures/Golem.js';
+import Unicorns from './creatures/Unicorns.js';
 import AudioEngine from './audio/AudioEngine.js';
 import HUD from './ui/HUD.js';
 import Menus from './ui/Menus.js';
@@ -24,6 +25,7 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false; // throttled to every other frame in the loop (sun moves slowly)
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
@@ -52,6 +54,7 @@ const ctx = {
     daySeconds: 600,
   },
   time: { elapsed: 0, dt: 0 },
+  perf: { pixelRatio: Math.min(window.devicePixelRatio, 2), emaMs: 16 },
 };
 
 const SYSTEM_ORDER = [
@@ -67,6 +70,7 @@ const SYSTEM_ORDER = [
   ['spells', SpellManager],
   ['wisps', Wisps],
   ['golems', Golems],
+  ['unicorns', Unicorns],
   ['audio', AudioEngine],
   ['hud', HUD],
   ['menus', Menus],
@@ -83,19 +87,59 @@ for (const [name, SystemClass] of SYSTEM_ORDER) {
   }
 }
 
+// Adaptive resolution: the game is fill-rate bound, so step pixelRatio in 0.25
+// increments based on an EMA of frame time. Hysteresis: at most one step per 2s.
+const PERF = {
+  scaleMin: 1.0,
+  scaleMax: Math.min(window.devicePixelRatio, 2),
+  stepDownMs: 22, // EMA above this → lower resolution
+  stepUpMs: 12,   // EMA below this (and headroom) → raise resolution
+  intervalMs: 2000,
+};
+let lastScaleCheck = performance.now();
+
+function applyPixelRatio(ratio) {
+  ctx.perf.pixelRatio = ratio;
+  renderer.setPixelRatio(ratio);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
 window.addEventListener('resize', () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+  applyPixelRatio(ctx.perf.pixelRatio); // respect the adaptive ratio, not the hardcoded cap
 });
 
 let last = performance.now();
+let frame = 0;
 renderer.setAnimationLoop(() => {
   const now = performance.now();
-  const dt = Math.min((now - last) / 1000, 0.05);
+  const rawMs = now - last;
+  const dt = Math.min(rawMs / 1000, 0.05);
   last = now;
   ctx.time.dt = dt;
   ctx.time.elapsed += dt;
+
+  // smooth frame time (EMA, alpha 0.05 ≈ ~1s memory at 60fps)
+  ctx.perf.emaMs += (rawMs - ctx.perf.emaMs) * 0.05;
+  if (now - lastScaleCheck >= PERF.intervalMs) {
+    lastScaleCheck = now;
+    const { emaMs, pixelRatio } = ctx.perf;
+    let next = pixelRatio;
+    if (emaMs > PERF.stepDownMs && pixelRatio > PERF.scaleMin) {
+      next = Math.max(PERF.scaleMin, pixelRatio - 0.25);
+    } else if (emaMs < PERF.stepUpMs && pixelRatio < PERF.scaleMax) {
+      next = Math.min(PERF.scaleMax, pixelRatio + 0.25);
+    }
+    if (next !== pixelRatio) {
+      applyPixelRatio(next);
+      console.info(`[magic-world] adaptive resolution: pixelRatio ${pixelRatio} -> ${next} (ema ${emaMs.toFixed(1)}ms)`);
+    }
+  }
+
+  // half-rate shadow updates — the sun moves slowly, every other frame is imperceptible
+  frame++;
+  renderer.shadowMap.needsUpdate = (frame & 1) === 0;
   for (const [name] of SYSTEM_ORDER) {
     const system = ctx.systems[name];
     if (!system || !system.update) continue;

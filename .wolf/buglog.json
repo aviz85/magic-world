@@ -1,4 +1,41 @@
 {
   "version": 1,
-  "bugs": []
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-06-12T07:54:04.757Z",
+      "error_message": "Significant refactor of ",
+      "file": "src/core/AssetFactory.js",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 7→3 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T07:54:04.757Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-06-12T00:00:00.000Z",
+      "error_message": "GrowTree spell broken — trees not planting (user report: tree planting not working)",
+      "file": "src/core/AssetFactory.js",
+      "root_cause": "A prior uncommitted refactor deleted the unitCone/unitIco geometry helpers as 'unused', but makeTreeMesh still calls them (lines 184/202) for canopy meshes → ReferenceError on every spawnTree, so GrowTree and natural vegetation tree builds failed",
+      "fix": "Restored the unitCone and unitIco cached-geometry helpers in AssetFactory.js",
+      "tags": [
+        "referenceerror",
+        "dead-code-removal",
+        "growtree",
+        "assetfactory",
+        "vegetation"
+      ],
+      "related_bugs": [
+        "bug-001"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T00:00:00.000Z"
+    }
+  ]
 }
