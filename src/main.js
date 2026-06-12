@@ -112,7 +112,7 @@ window.addEventListener('resize', () => {
 
 let last = performance.now();
 let frame = 0;
-renderer.setAnimationLoop(() => {
+const loop = () => {
   const now = performance.now();
   const rawMs = now - last;
   const dt = Math.min(rawMs / 1000, 0.05);
@@ -152,7 +152,43 @@ renderer.setAnimationLoop(() => {
     }
   }
   renderer.render(scene, camera);
-});
+};
+
+// ---------------------------------------------------------------------------
+// Boot: keep the loading veil up until the GPU is genuinely ready — all
+// shaders compiled (compileAsync covers onBeforeCompile materials like Water)
+// and two warm-up frames rendered with a forced shadow pass, so the first
+// frame the player sees is complete instead of popping in piece by piece.
+// ---------------------------------------------------------------------------
+const loadingEl = document.getElementById('mw-loading');
+
+async function boot() {
+  const loadingText = loadingEl?.querySelector('.mw-load-text');
+  try {
+    if (loadingText) loadingText.textContent = 'Weaving the light…';
+    await renderer.compileAsync(scene, camera);
+  } catch (err) {
+    // Precompile is an optimization, never a gate — fall through to warm-up.
+    console.warn('[magic-world] shader precompile failed, continuing', err);
+  }
+
+  if (loadingText) loadingText.textContent = 'Opening your eyes…';
+  for (let i = 0; i < 2; i++) {
+    renderer.shadowMap.needsUpdate = true;
+    renderer.render(scene, camera);
+    await new Promise(requestAnimationFrame); // let the GPU breathe between frames
+  }
+
+  if (loadingEl) {
+    loadingEl.classList.add('mw-load-done');
+    setTimeout(() => loadingEl.remove(), 700); // matches the CSS 0.6s fade
+  }
+  window.__gameReady = true; // QA hook: world is compiled, warmed and visible
+
+  last = performance.now(); // don't count load time as the first frame's dt
+  renderer.setAnimationLoop(loop);
+}
+boot();
 
 // expose for QA / debugging
 window.__game = ctx;

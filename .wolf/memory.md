@@ -25,3 +25,12 @@
 | 14:45 | Edited src/main.js | added 1 import(s) | ~26 |
 | 14:45 | Edited src/main.js | 1→2 lines | ~14 |
 | 14:48 | Fixed GrowTree (restored unitCone/unitIco in AssetFactory) + added Unicorns herd system | src/core/AssetFactory.js, src/creatures/Unicorns.js, src/main.js | verified headless: spawnTree OK, 3 unicorns in scene, 0 errors | ~25k |
+| 14:49 | Session end: 4 writes across 3 files (AssetFactory.js, Unicorns.js, main.js) | 3 reads | ~11619 tok |
+| 14:57 | Edited index.html | expanded (+27 lines) | ~364 |
+| 14:57 | Edited src/main.js | 3→3 lines | ~19 |
+| 14:58 | Edited src/main.js | added error handling | ~461 |
+| 15:03 | Edited src/world/Water.js | expanded (+7 lines) | ~133 |
+| 15:03 | Edited src/world/Water.js | 4→5 lines | ~59 |
+| 15:03 | Edited src/world/Water.js | expanded (+16 lines) | ~238 |
+| 15:03 | Edited src/world/Water.js | added 3 condition(s) | ~333 |
+| 15:06 | Loading veil gated on compileAsync+warmup frames; underwater blue tint (fog override + veil, DoubleSide water) | index.html, src/main.js, src/world/Water.js | verified headless: __gameReady fires, veil removed, fog 0.048/#3776a0 underwater, restores on surfacing | ~30k |

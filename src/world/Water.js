@@ -71,6 +71,13 @@ const SWELL_AMP = 0.18; // envelope ranges 0.82 .. 1.18
 const FOAM_DEPTH = 0.9;
 const FOAM_COLOR = new THREE.Color('#eafaf4'); // soft sea-foam, never #ffffff
 
+// Underwater veil: when the camera dips below the surface the world should
+// read "submerged in a lagoon", not transparent air. Water.update runs after
+// Sky.update (SYSTEM_ORDER), so overriding fog here wins for the frame.
+const UNDERWATER_COLOR = new THREE.Color('#1d6f9b');       // sunlit shallows
+const UNDERWATER_COLOR_NIGHT = new THREE.Color('#0a2e4d'); // moonlit depths
+const UNDERWATER_FOG_DENSITY = 0.05;
+
 const COLOR_DAY = new THREE.Color('#2aa3a8');
 const COLOR_DAY_B = new THREE.Color('#35b0d2'); // azure twin — daylight hue drifts between the two
 const COLOR_NIGHT = new THREE.Color('#1b5e8a');
@@ -137,6 +144,7 @@ export default class Water {
       roughness: 0.15,
       metalness: 0.0,
       depthWrite: false,             // friendlier transparency sorting
+      side: THREE.DoubleSide,        // surface must read from below (underwater)
     });
 
     // Single shared time uniform — created here so update() can write it even
@@ -156,6 +164,22 @@ export default class Water {
     this.mesh.renderOrder = 1; // draw after opaque world for clean blending
     this.mesh.matrixAutoUpdate = false;
     this.mesh.updateMatrix();
+
+    // --- Underwater veil ------------------------------------------------------
+    // Fullscreen tint that fades in when the camera submerges. The fog override
+    // colors the world; this veil guarantees the blue wash even where fog
+    // can't reach (sky dome, near geometry). Driven per-frame, no transitions.
+    this._uwFade = 0;
+    this._uwTint = new THREE.Color();
+    this._veil = document.createElement('div');
+    this._veil.id = 'mw-underwater';
+    Object.assign(this._veil.style, {
+      position: 'fixed', inset: '0', zIndex: '3', pointerEvents: 'none',
+      background:
+        'radial-gradient(ellipse at 50% 30%, rgba(46,140,190,0.30) 0%, rgba(13,58,92,0.55) 100%)',
+      opacity: '0',
+    });
+    document.body.appendChild(this._veil);
 
     // Contract: water must never block build/spell raycasts.
     this.mesh.raycast = () => {};
@@ -371,5 +395,27 @@ export default class Water {
 
     // Barely-there opacity breathing (0.73–0.77) keeps the surface dreamlike.
     this.material.opacity = 0.75 + 0.02 * Math.sin(elapsed * 0.23);
+
+    // --- Underwater veil -------------------------------------------------------
+    // Camera below the surface → push the world into lagoon blue: dense blue
+    // fog (overrides Sky's per-frame write — we run after it) + screen tint.
+    const cam = this.ctx.camera;
+    const submerged = cam && cam.position.y < this.ctx.config.waterLevel;
+    let fade = this._uwFade;
+    fade += ((submerged ? 1 : 0) - fade) * Math.min(1, dt * 8); // ~0.3 s ease
+    if (fade < 0.001) fade = 0;
+    this._uwFade = fade;
+
+    if (fade > 0 && fog && fog.color) {
+      const uw = this._uwTint.lerpColors(UNDERWATER_COLOR, UNDERWATER_COLOR_NIGHT, night);
+      fog.color.lerp(uw, fade);
+      fog.density += (UNDERWATER_FOG_DENSITY - fog.density) * fade;
+    }
+    // One style write per frame, skipped entirely while fully surfaced.
+    const veilOpacity = (fade * 100 | 0) / 100;
+    if (veilOpacity !== this._veilOpacity) {
+      this._veilOpacity = veilOpacity;
+      this._veil.style.opacity = String(veilOpacity);
+    }
   }
 }

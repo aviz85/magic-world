@@ -1,13 +1,13 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T11:45:53.108Z
-> Files: 48 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-06-12T12:03:29.922Z
+> Files: 49 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
 - `.gitignore` — Git ignore rules (~48 tok)
 - `CLAUDE.md` — OpenWolf (~57 tok)
-- `index.html` — Magic World ✨ (~176 tok)
+- `index.html` — Magic World ✨ (~527 tok)
 - `package-lock.json` — npm lock file (~11359 tok)
 - `package.json` — Node.js package manifest (~91 tok)
 
@@ -39,7 +39,7 @@
 
 ## src/
 
-- `main.js` — renderer: applyPixelRatio (~1507 tok)
+- `main.js` — renderer: applyPixelRatio, boot (~1938 tok)
 - `style.css` — Styles: 2 rules (~98 tok)
 
 ## src/audio/
@@ -101,4 +101,4 @@
 - `Sky.js` — Sky — full day/night cycle for Magic World. (~7606 tok)
 - `Terrain.js` — Terrain — fbm island heightfield (160x160 verts over 240x240 world units). (~6069 tok)
 - `Vegetation.js` — Vegetation — seeded scatter of trees, glowing mushrooms, crystal clusters and (~6617 tok)
-- `Water.js` — --------------------------------------------------------------------------- (~5081 tok)
+- `Water.js` — --------------------------------------------------------------------------- (~5733 tok)

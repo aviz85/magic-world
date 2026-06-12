@@ -36,6 +36,58 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-06-12T00:00:00.000Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-06-12T11:58:00.916Z",
+      "error_message": "Missing error handling in function",
+      "file": "src/main.js",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "js"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T11:58:00.916Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-06-12T00:00:00.000Z",
+      "error_message": "Graphics pop in late after the title screen appears (user: add loading time, verify loaded before opening)",
+      "file": "src/main.js, index.html",
+      "root_cause": "Shaders compile lazily on first render and the shadow map is empty, so the world appears piecemeal behind/after the title overlay",
+      "fix": "Loading veil in index.html (painted pre-bundle) removed only after renderer.compileAsync(scene,camera) + 2 warm-up frames with forced shadow pass; window.__gameReady QA flag; loop starts after boot()",
+      "tags": [
+        "loading",
+        "shader-compile",
+        "compileAsync",
+        "boot",
+        "ux"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T00:00:00.000Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-06-12T00:00:00.000Z",
+      "error_message": "Underwater looks transparent instead of bluish (user report)",
+      "file": "src/world/Water.js",
+      "root_cause": "Water material was FrontSide (surface invisible from below) and nothing tinted the view when the camera submerged — Sky's clear-air fog kept rendering",
+      "fix": "side: DoubleSide on water material; per-frame underwater override of fog color/density (Water runs after Sky in SYSTEM_ORDER so the override wins) + fullscreen #mw-underwater tint veil with ~0.3s ease",
+      "tags": [
+        "underwater",
+        "fog",
+        "water",
+        "doubleside",
+        "camera"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-06-12T00:00:00.000Z"
     }
   ]
 }
